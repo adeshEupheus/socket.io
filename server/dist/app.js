@@ -12,19 +12,42 @@ app.use((0, cors_1.default)());
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server, {
     cors: {
-        origin: '*',
-        methods: ['GET', 'POST'],
+        origin: "*",
+        methods: ["GET", "POST"],
     },
 });
-io.on('connection', (socket) => {
+const userio = io.of("/user");
+userio.on("connection", (socket) => {
+    console.log("you are connect to the namespace");
+    console.log(`your token is ${socket.username}`);
+});
+userio.use((socket, next) => {
+    if (socket.handshake.auth.token) {
+        socket.username = getUserNameFromToken(socket.handshake.auth.token);
+        next();
+    }
+    else {
+        next(new Error("please send token"));
+    }
+});
+const getUserNameFromToken = (token) => {
+    return token;
+};
+io.on("connection", (socket) => {
     console.log(`user connected ${socket.id}`);
-    socket.on('join_room', (room) => {
+    socket.on("join_room", (room, cb) => {
         socket.join(room);
+        cb(`joind ${room}`);
     });
-    socket.on('send_msg', (data) => {
-        socket.to(data.room).emit('recieved_msg', { message: data.message });
+    socket.on("send_msg", (data) => {
+        if (!data.room) {
+            socket.broadcast.emit("recieved_msg", { message: data.message });
+        }
+        else {
+            socket.to(data.room).emit("recieved_msg", { message: data.message });
+        }
     });
 });
 server.listen(4000, () => {
-    console.log('server is running');
+    console.log("server is running");
 });
